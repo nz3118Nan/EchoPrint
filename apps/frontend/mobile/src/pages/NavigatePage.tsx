@@ -5,11 +5,12 @@ import {
   setAudioModeAsync,
   useAudioRecorder,
 } from "expo-audio";
+import * as ImagePicker from "expo-image-picker";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Animated,
-  ImageBackground,
+  Image,
   PanResponder,
   Pressable,
   SafeAreaView,
@@ -20,7 +21,9 @@ import {
   View,
 } from "react-native";
 
-import { createTraceSession, uploadVoice } from "../api/backend";
+import { createMessage, createTraceSession, uploadPhoto, uploadVoice } from "../api/backend";
+import { TraceMap } from "../components/TraceMap";
+import { startTraceLocation, type TrackPoint } from "../location/gps";
 
 type EchoMode = "idle" | "record" | "photo" | "text";
 type TimelineItem = {
@@ -29,24 +32,29 @@ type TimelineItem = {
   title: string;
   detail: string;
   type: "photo" | "voice" | "note";
+  imageUri?: string;
 };
 
-const mapSource = require("../../../../../docs/ui/raw_ui/Driver App/rn-CityTruckDriver/assets/images/map_bg1.png");
 const firstTimeline: TimelineItem[] = [
   { id: "started", time: "Now", title: "Trace started", detail: "Location is being remembered.", type: "note" },
 ];
+const MAX_ECHO_DRAG = 122;
+const LOCK_THRESHOLD = 84;
+const UNLOCK_THRESHOLD = 60;
 
-export function NavigatePage() {
-  const [started, setStarted] = useState(false);
-  const [sessionId, setSessionId] = useState<string>();
+export function NavigatePage({ onSessionStarted, sessionId }: { onSessionStarted: (sessionId: string) => void; sessionId?: string }) {
+  const hasActiveSession = Boolean(sessionId);
   const [timeline, setTimeline] = useState<TimelineItem[]>(firstTimeline);
   const [mode, setMode] = useState<EchoMode>("idle");
   const [duration, setDuration] = useState(0);
   const [composerOpen, setComposerOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [draft, setDraft] = useState("");
+  const [trackPoints, setTrackPoints] = useState<TrackPoint[]>([]);
+  const stopLocation = useRef<(() => Promise<void>) | null>(null);
   const pulse = useRef(new Animated.Value(0)).current;
-  const dragY = useRef(new Animated.Value(0)).current;
+  const recordingPulse = useRef(new Animated.Value(1)).current;
+  const dragX = useRef(new Animated.Value(0)).current;
   const modeRef = useRef<EchoMode>("idle");
   const startedAt = useRef(0);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -55,12 +63,18 @@ export function NavigatePage() {
   async function startTrace() {
     try {
       const session = await createTraceSession();
-      setSessionId(session.id);
-      setStarted(true);
+      stopLocation.current = await startTraceLocation(session.id, (point) => {
+        setTrackPoints((points) => [...points, point]);
+      });
+      onSessionStarted(session.id);
     } catch (error) {
       Alert.alert("Could not start", error instanceof Error ? error.message : "Try again.");
     }
   }
+
+  useEffect(() => () => {
+    void stopLocation.current?.().catch(console.error);
+  }, []);
 
   async function beginRecording() {
     const permission = await AudioModule.requestRecordingPermissionsAsync();
@@ -104,9 +118,9 @@ export function NavigatePage() {
         Animated.timing(pulse, { toValue: 0, duration: 1500, useNativeDriver: true }),
       ]),
     );
-    if (!started) animation.start();
+    if (!hasActiveSession) animation.start();
     return () => animation.stop();
-  }, [pulse, started]);
+  }, [hasActiveSession, pulse]);
 
   useEffect(() => {
     if (mode !== "record") {
@@ -120,11 +134,65 @@ export function NavigatePage() {
     return () => clearInterval(timer);
   }, [mode]);
 
-  function addTimeline(type: TimelineItem["type"], title: string, detail: string) {
+  useEffect(() => {
+    if (mode !== "record") {
+      recordingPulse.setValue(1);
+      return;
+    }
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(recordingPulse, { toValue: 0.2, duration: 520, useNativeDriver: true }),
+        Animated.timing(recordingPulse, { toValue: 1, duration: 520, useNativeDriver: true }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [mode, recordingPulse]);
+
+  function addTimeline(type: TimelineItem["type"], title: string, detail: string, imageUri?: string) {
     setTimeline((items) => [
-      { id: `${type}-${Date.now()}`, time: "Now", title, detail, type },
+      { id: `${type}-${Date.now()}`, time: "Now", title, detail, type, imageUri },
       ...items,
     ]);
+  }
+
+  async function selectPhoto(source: "camera" | "file") {
+    if (!sessionId) return;
+    try {
+      const permission = source === "camera"
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Photo permission needed", "Enable photo access to save a photo echo.");
+        return;
+      }
+      const result = source === "camera"
+        ? await ImagePicker.launchCameraAsync({ quality: 1 })
+        : await ImagePicker.launchImageLibraryAsync({ quality: 1 });
+      if (result.canceled) return;
+      setUploading(true);
+      const asset = result.assets[0];
+      const saved = await uploadPhoto(sessionId, asset, source);
+      addTimeline("photo", "Photo echo", `${Math.ceil(saved.size / 1024)} KB · saved`, asset.uri);
+    } catch (error) {
+      Alert.alert("Photo not saved", error instanceof Error ? error.message : "Try again.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function openPhotoMenu() {
+    Alert.alert("Add a photo echo", "Choose where the photo comes from.", [
+      { text: "Take photo", onPress: () => void selectPhoto("camera") },
+      { text: "Choose from library", onPress: () => void selectPhoto("file") },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
+
+  async function handleRelease(action: EchoMode) {
+    await finishRecording(action);
+    if (action === "photo") openPhotoMenu();
+    if (action === "text") setComposerOpen(true);
   }
 
   const responder = useMemo(
@@ -139,8 +207,10 @@ export function NavigatePage() {
           recordingStart.current = beginRecording();
         },
         onPanResponderMove: (_, gesture) => {
-          dragY.setValue(Math.max(-58, Math.min(58, gesture.dy)));
-          const nextMode: EchoMode = gesture.dy < -38 ? "photo" : gesture.dy > 38 ? "text" : "record";
+          dragX.setValue(Math.max(-MAX_ECHO_DRAG, Math.min(MAX_ECHO_DRAG, gesture.dx)));
+          const leftThreshold = modeRef.current === "photo" ? -UNLOCK_THRESHOLD : -LOCK_THRESHOLD;
+          const rightThreshold = modeRef.current === "text" ? UNLOCK_THRESHOLD : LOCK_THRESHOLD;
+          const nextMode: EchoMode = gesture.dx < leftThreshold ? "photo" : gesture.dx > rightThreshold ? "text" : "record";
           if (modeRef.current !== nextMode) {
             modeRef.current = nextMode;
             setMode(nextMode);
@@ -148,64 +218,69 @@ export function NavigatePage() {
         },
         onPanResponderRelease: () => {
           const action = modeRef.current;
-          Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
-          void finishRecording(action);
-          if (action === "photo") addTimeline("photo", "Photo echo", "A moment saved to this trace.");
-          if (action === "text") setComposerOpen(true);
+          Animated.spring(dragX, { toValue: 0, useNativeDriver: true }).start();
+          void handleRelease(action);
           modeRef.current = "idle";
           setMode("idle");
         },
         onPanResponderTerminate: () => {
-          Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
+          Animated.spring(dragX, { toValue: 0, useNativeDriver: true }).start();
           modeRef.current = "idle";
           setMode("idle");
           void finishRecording("idle");
         },
       }),
-    [dragY, sessionId],
+    [dragX, sessionId],
   );
 
-  function submitNote() {
-    if (!draft.trim()) return;
-    addTimeline("note", "Written echo", draft.trim());
-    setDraft("");
-    setComposerOpen(false);
+  async function submitNote() {
+    const content = draft.trim();
+    if (!content || !sessionId) return;
+    try {
+      setUploading(true);
+      const saved = await createMessage(sessionId, content);
+      addTimeline("note", "Written echo", saved.content);
+      setDraft("");
+      setComposerOpen(false);
+    } catch (error) {
+      Alert.alert("Text echo not saved", error instanceof Error ? error.message : "Try again.");
+    } finally {
+      setUploading(false);
+    }
   }
 
-  if (!started) return <StartTrace onStart={() => void startTrace()} pulse={pulse} />;
+  if (!hasActiveSession) return <StartTrace onStart={() => void startTrace()} pulse={pulse} />;
 
   const prompt =
     mode === "record"
       ? `Recording · ${formatDuration(duration)}`
       : mode === "photo"
-        ? "Release to save a photo"
+        ? "Release for photo"
         : mode === "text"
-          ? "Release to write a note"
+          ? "Release to write"
           : uploading
             ? "Saving and transcribing voice…"
-            : "Hold to record · drag up or down";
+            : "Hold to record · slide left or right";
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>ACTIVE OUTDOOR SESSION</Text>
-          <Text style={styles.title}>Today’s trace</Text>
+          <Text style={styles.eyebrow}>ACTIVE LOCAL SESSION</Text>
+          <Text style={styles.title}>Your live trace</Text>
         </View>
         <View style={styles.live}>
           <View style={styles.liveDot} />
           <Text style={styles.liveText}>LIVE</Text>
         </View>
       </View>
-      <ImageBackground imageStyle={styles.mapImage} source={mapSource} style={styles.map}>
-        <View style={styles.mapWash} />
-        <View style={styles.mapLine} />
-        <View style={styles.mapPoint}><View style={styles.mapPointInner} /></View>
+      <View style={styles.map}>
+        <TraceMap points={trackPoints} />
         <View style={styles.mapCaption}>
           <Feather color="#E3F0D3" name="navigation" size={13} />
-          <Text style={styles.mapCaptionText}>0.6 KM · 14 MIN</Text>
+          <Text style={styles.mapCaptionText}>LOCAL · {trackPoints.length} GPS POINTS</Text>
         </View>
-      </ImageBackground>
+      </View>
       <View style={styles.timelineHeading}>
         <Text style={styles.timelineTitle}>Today’s echoes</Text>
         <Text style={styles.timelineCount}>{timeline.length} ITEMS</Text>
@@ -224,7 +299,7 @@ export function NavigatePage() {
             style={styles.input}
             value={draft}
           />
-          <Pressable accessibilityLabel="Save text echo" onPress={submitNote} style={styles.send}>
+          <Pressable accessibilityLabel="Save text echo" onPress={() => void submitNote()} style={styles.send}>
             <Feather color="#F3F5E9" name="arrow-up" size={18} />
           </Pressable>
         </View>
@@ -232,22 +307,28 @@ export function NavigatePage() {
       <View style={styles.echoDock}>
         <Text style={[styles.echoHint, mode !== "idle" && styles.activeHint]}>{prompt}</Text>
         <View style={styles.echoTrack}>
-          <Text style={styles.upHint}>↑ PHOTO</Text>
+          <View pointerEvents="none" style={[styles.ghostAction, styles.leftAction]}>
+            <Feather color="#174B3A" name="camera" size={24} />
+            <Text style={styles.ghostLabel}>PHOTO</Text>
+          </View>
           <Animated.View
             {...responder.panHandlers}
-            accessibilityLabel="Echo Point. Hold to record, drag up for photo, drag down for text."
+            accessibilityLabel="Echo Point. Hold to record, slide left for photo, slide right for text."
             style={[
               styles.echoPoint,
-              mode === "record" && styles.recordingPoint,
-              mode === "photo" && styles.photoPoint,
-              mode === "text" && styles.textPoint,
-              { transform: [{ translateY: dragY }] },
+              mode !== "idle" && styles.activeEchoPoint,
+              (mode === "photo" || mode === "text") && styles.lockedEchoPoint,
+              { transform: [{ translateX: dragX }, { scale: mode === "photo" || mode === "text" ? 1.06 : 1 }] },
             ]}
           >
-            <Feather color={mode === "idle" ? "#173F32" : "#F5F4EB"} name={mode === "photo" ? "camera" : mode === "text" ? "edit-3" : mode === "record" ? "mic" : "navigation"} size={23} />
-            <Text style={[styles.echoPointLabel, mode === "idle" && styles.idleEchoPointLabel]}>{mode === "idle" ? "ECHO POINT" : "ECHO"}</Text>
+            {mode === "record" ? <Animated.View style={[styles.recordingDot, { opacity: recordingPulse }]} /> : null}
+            {mode === "idle" ? <Image source={require("../../assets/brand/logo-mark.png")} style={styles.echoLogo} /> : <Feather color="#F5F4EB" name={mode === "photo" ? "camera" : mode === "text" ? "edit-3" : "mic"} size={23} />}
+            {mode !== "idle" ? <Text style={styles.echoPointLabel}>{mode === "record" ? "RECORDING" : "LOCKED"}</Text> : null}
           </Animated.View>
-          <Text style={styles.downHint}>↓ WRITE</Text>
+          <View pointerEvents="none" style={[styles.ghostAction, styles.rightAction]}>
+            <Feather color="#174B3A" name="edit-3" size={24} />
+            <Text style={styles.ghostLabel}>WRITE</Text>
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -270,8 +351,7 @@ function StartTrace({ onStart, pulse }: { onStart: () => void; pulse: Animated.V
         <View style={styles.startPointWrap}>
           <Animated.View style={[styles.pulse, { opacity, transform: [{ scale }] }]} />
           <Pressable accessibilityLabel="Start your trace with Echo Point" onPress={onStart} style={styles.echoPoint}>
-            <Feather color="#173F32" name="navigation" size={26} />
-            <Text style={styles.startPointText}>ECHO POINT</Text>
+            <Image source={require("../../assets/brand/logo-mark.png")} style={styles.echoLogo} />
           </Pressable>
         </View>
         <Text style={styles.startSubhint}>Tap to begin · hold once your trace is live</Text>
@@ -290,6 +370,7 @@ function TimelineRow({ index, item }: { index: number; item: TimelineItem }) {
       </View>
       <View style={styles.timelineTime}><Text style={styles.timeText}>{item.time}</Text></View>
       <View style={styles.timelineCard}>
+        {item.imageUri ? <Image source={{ uri: item.imageUri }} style={styles.timelinePhoto} /> : null}
         <View style={styles.timelineIcon}><Feather color="#174B3A" name={icon} size={15} /></View>
         <View style={styles.timelineText}>
           <Text style={styles.itemTitle}>{item.title}</Text>
@@ -312,12 +393,7 @@ const styles = StyleSheet.create({
   live: { alignItems: "center", backgroundColor: "#E1EDD0", borderRadius: 12, flexDirection: "row", gap: 5, paddingHorizontal: 9, paddingVertical: 7 },
   liveDot: { backgroundColor: "#3D865F", borderRadius: 4, height: 7, width: 7 },
   liveText: { color: "#276344", fontSize: 9, fontWeight: "800", letterSpacing: 1 },
-  map: { height: 145, marginHorizontal: 20, marginTop: 16, overflow: "hidden", position: "relative" },
-  mapImage: { resizeMode: "cover" },
-  mapWash: { ...StyleSheet.absoluteFillObject, backgroundColor: "#D8E3D5", opacity: 0.25 },
-  mapLine: { backgroundColor: "#174B3A", borderRadius: 4, height: 5, left: "24%", position: "absolute", top: "60%", transform: [{ rotate: "-26deg" }], width: "50%" },
-  mapPoint: { alignItems: "center", backgroundColor: "rgba(232,245,207,0.62)", borderRadius: 18, height: 36, justifyContent: "center", left: "70%", position: "absolute", top: "28%", width: 36 },
-  mapPointInner: { backgroundColor: "#E9F5C8", borderColor: "#174B3A", borderRadius: 8, borderWidth: 3, height: 16, width: 16 },
+  map: { height: 280, marginHorizontal: 20, marginTop: 16, overflow: "hidden", position: "relative" },
   mapCaption: { alignItems: "center", backgroundColor: "rgba(23,63,50,0.90)", bottom: 9, flexDirection: "row", gap: 5, left: 9, paddingHorizontal: 8, paddingVertical: 6, position: "absolute" },
   mapCaptionText: { color: "#E3F0D3", fontSize: 9, fontWeight: "800", letterSpacing: 0.8 },
   timelineHeading: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 18 },
@@ -332,6 +408,7 @@ const styles = StyleSheet.create({
   timelineTime: { paddingLeft: 8, paddingTop: 8, width: 45 },
   timeText: { color: "#789080", fontSize: 10, fontWeight: "700" },
   timelineCard: { alignItems: "center", backgroundColor: "#FFFFFF", borderColor: "#E0E6DD", borderRadius: 14, borderWidth: 1, flex: 1, flexDirection: "row", marginBottom: 9, padding: 10 },
+  timelinePhoto: { borderRadius: 10, height: 46, marginRight: 9, width: 46 },
   timelineIcon: { alignItems: "center", backgroundColor: "#E5EEDF", borderRadius: 11, height: 30, justifyContent: "center", width: 30 },
   timelineText: { flex: 1, marginLeft: 9 },
   itemTitle: { color: "#254836", fontSize: 12, fontWeight: "800" },
@@ -342,15 +419,17 @@ const styles = StyleSheet.create({
   echoDock: { backgroundColor: "#F6F4ED", bottom: 96, left: 0, paddingBottom: 13, paddingTop: 10, position: "absolute", right: 0 },
   echoHint: { color: "#6A8475", fontSize: 11, fontWeight: "700", paddingBottom: 7, textAlign: "center" },
   activeHint: { color: "#174B3A" },
-  echoTrack: { alignItems: "center", height: 110, justifyContent: "center", position: "relative" },
-  upHint: { color: "#668572", fontSize: 9, fontWeight: "800", letterSpacing: 0.8, position: "absolute", top: 1 },
-  downHint: { bottom: 1, color: "#668572", fontSize: 9, fontWeight: "800", letterSpacing: 0.8, position: "absolute" },
+  echoTrack: { alignItems: "center", height: 82, justifyContent: "center", position: "relative" },
+  ghostAction: { alignItems: "center", justifyContent: "center", opacity: 0.25, paddingVertical: 6, position: "absolute", top: 8, width: 66, zIndex: 3 },
+  leftAction: { left: 18 },
+  rightAction: { right: 18 },
+  ghostLabel: { color: "#174B3A", fontSize: 8, fontWeight: "800", letterSpacing: 0.8, marginTop: 4 },
   echoPoint: { alignItems: "center", backgroundColor: "#E7F2CC", borderColor: "#173F32", borderRadius: 34, borderWidth: 1.5, height: 68, justifyContent: "center", width: 130, zIndex: 2 },
-  recordingPoint: { backgroundColor: "#B34E47", borderColor: "#F5CEC4" },
-  photoPoint: { backgroundColor: "#7F8660" },
-  textPoint: { backgroundColor: "#54768B" },
+  activeEchoPoint: { backgroundColor: "#174B3A", borderColor: "#AFCB9B" },
+  lockedEchoPoint: { borderColor: "#E4F4C9", borderWidth: 3, shadowColor: "#174B3A", shadowOffset: { height: 5, width: 0 }, shadowOpacity: 0.32, shadowRadius: 7 },
+  recordingDot: { backgroundColor: "#E24D44", borderColor: "#FFD6D1", borderRadius: 5, borderWidth: 1, height: 10, position: "absolute", right: 17, top: 10, width: 10 },
   echoPointLabel: { color: "#F4F4EA", fontSize: 9, fontWeight: "800", letterSpacing: 1, marginTop: 2 },
-  idleEchoPointLabel: { color: "#173F32" },
+  echoLogo: { height: 60, resizeMode: "contain", width: 60 },
   startSafeArea: { backgroundColor: "#12382D", flex: 1 },
   startContent: { flex: 1, overflow: "hidden", paddingHorizontal: 24, paddingTop: 35 },
   startEyebrow: { color: "#BFD8A6", fontSize: 10, fontWeight: "800", letterSpacing: 1.5 },
@@ -364,6 +443,5 @@ const styles = StyleSheet.create({
   startHint: { color: "#BFD8A6", fontSize: 10, fontWeight: "800", letterSpacing: 1.1 },
   startPointWrap: { alignItems: "center", justifyContent: "center", marginTop: 14 },
   pulse: { backgroundColor: "#C9E1AE", borderRadius: 41, height: 82, position: "absolute", width: 82 },
-  startPointText: { color: "#173F32", fontSize: 10, fontWeight: "800", letterSpacing: 1.1, marginTop: 2 },
   startSubhint: { color: "#B8CEBB", fontSize: 10, marginTop: 11 },
 });

@@ -4,6 +4,7 @@
     "slug": "echopoint",
     "scheme": "echoprint",
     "version": "0.1.0",
+    "icon": "./assets/brand/app-icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "web": {
@@ -12,13 +13,34 @@
     "ios": {
       "bundleIdentifier": "com.nz3118.echoprint"
     },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F4F2EA",
+        "foregroundImage": "./assets/brand/adaptive-icon-foreground.png",
+        "monochromeImage": "./assets/brand/adaptive-icon-monochrome.png"
+      }
+    },
     "plugins": [
       "expo-web-browser",
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow EchoPoint to record your route while a trace is active."
+        }
+      ],
       [
         "expo-audio",
         {
           "microphonePermission": "Allow EchoPoint to record voice echoes.",
           "enableBackgroundRecording": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow EchoPoint to take photo echoes.",
+          "photosPermission": "Allow EchoPoint to choose photo echoes."
         }
       ]
     ]

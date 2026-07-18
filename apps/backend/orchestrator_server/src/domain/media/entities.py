@@ -27,3 +27,14 @@ class MediaVoice:
     created_time: datetime | None = None
     updated_time: datetime | None = None
     is_active: bool = True
+
+
+@dataclass
+class MediaMessage:
+    session_id: uuid.UUID
+    content: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+    id: uuid.UUID | None = None
+    created_time: datetime | None = None
+    updated_time: datetime | None = None
+    is_active: bool = True

@@ -65,7 +65,7 @@ function Divider() { return <View style={styles.divider} />; }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#12382D" },
-  content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 },
+  content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 116 },
   eyebrow: { color: "#B8D49D", fontSize: 11, fontWeight: "800", letterSpacing: 1.5 },
   title: { color: "#F7F4EC", fontSize: 36, fontWeight: "700", letterSpacing: -1, marginTop: 7 },
   profileCard: { alignItems: "center", backgroundColor: "#1D4A3C", borderColor: "#356654", borderRadius: 22, borderWidth: 1, flexDirection: "row", marginTop: 23, padding: 18 },

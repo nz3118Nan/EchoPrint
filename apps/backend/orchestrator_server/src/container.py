@@ -5,6 +5,7 @@ from src.infrastructure.database.postgres.connection import AsyncSqlDatabase
 from src.infrastructure.database.redis.connection import AsyncRedisDatabase
 from src.infrastructure.database.postgres.repositories.user_repository import UserRepository
 from src.infrastructure.database.postgres.repositories import (
+    PostgresMediaMessageRepository,
     PostgresMediaPhotoRepository,
     PostgresMediaVoiceRepository,
     PostgresSessionRepository,
@@ -21,6 +22,7 @@ class Container(containers.DeclarativeContainer):
     redis = providers.Singleton(AsyncRedisDatabase, config.system_config_setting.database.redis.url)
     user_repository = providers.Factory(UserRepository, database=database)
     media_photo_repository = providers.Factory(PostgresMediaPhotoRepository, database=database)
+    media_message_repository = providers.Factory(PostgresMediaMessageRepository, database=database)
     media_voice_repository = providers.Factory(PostgresMediaVoiceRepository, database=database)
     session_repository = providers.Factory(PostgresSessionRepository, database=database)
     supabase_token_verifier = providers.Singleton(

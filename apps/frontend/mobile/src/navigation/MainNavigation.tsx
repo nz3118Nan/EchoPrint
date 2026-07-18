@@ -10,17 +10,19 @@ const items: { id: MainPage; label: string; icon: keyof typeof Feather.glyphMap 
   { id: "profile", label: "Profile", icon: "user" },
 ];
 
-export function MainNavigation({ page, onChange }: { page: MainPage; onChange: (page: MainPage) => void }) {
+export function MainNavigation({ page, onChange, sessionActive = false }: { page: MainPage; onChange: (page: MainPage) => void; sessionActive?: boolean }) {
   return <View style={styles.nav}>
-    <BlurView intensity={48} style={StyleSheet.absoluteFill} tint="dark" />
+    <BlurView intensity={40} style={StyleSheet.absoluteFill} tint="dark" />
     {items.map((item) => {
       const active = item.id === page;
-      const color = active ? "#F0F4E5" : "#BED0C1";
+      const color = active ? "#173F32" : "#BED0C1";
+      const isLiveTrace = item.id === "navigate" && sessionActive;
       return <Pressable accessibilityRole="tab" accessibilityState={{ selected: active }} key={item.id} onPress={() => onChange(item.id)} style={styles.item}>
         <View style={[styles.iconWrap, active && styles.activeIconWrap]}>
           <Feather color={color} name={item.icon} size={18} strokeWidth={active ? 2.6 : 2} />
+          {isLiveTrace ? <View style={styles.liveDot} /> : null}
         </View>
-        <Text style={[styles.label, active && styles.activeLabel]}>{item.label}</Text>
+        <Text style={[styles.label, active && styles.activeLabel]}>{isLiveTrace ? "Active" : item.label}</Text>
       </Pressable>;
     })}
   </View>;
@@ -29,7 +31,7 @@ export function MainNavigation({ page, onChange }: { page: MainPage; onChange: (
 const styles = StyleSheet.create({
   nav: {
     alignItems: "center",
-    backgroundColor: "rgba(18, 56, 45, 0.58)",
+    backgroundColor: "rgba(18, 56, 45, 0.42)",
     borderColor: "rgba(221, 239, 207, 0.52)",
     borderRadius: 30,
     borderWidth: 1,
@@ -49,8 +51,9 @@ const styles = StyleSheet.create({
     shadowRadius: 15,
   },
   item: { alignItems: "center", flex: 1, gap: 4, justifyContent: "center" },
-  iconWrap: { alignItems: "center", borderRadius: 17, height: 33, justifyContent: "center", width: 48 },
-  activeIconWrap: { backgroundColor: "rgba(23, 63, 50, 0.92)", borderColor: "rgba(232, 246, 212, 0.7)", borderWidth: StyleSheet.hairlineWidth },
+  iconWrap: { alignItems: "center", borderRadius: 20, height: 36, justifyContent: "center", width: 56 },
+  activeIconWrap: { backgroundColor: "#BFD8A6", borderColor: "rgba(237, 248, 218, 0.88)", borderWidth: StyleSheet.hairlineWidth },
+  liveDot: { backgroundColor: "#BFD8A6", borderColor: "#174B3A", borderRadius: 5, borderWidth: 1.5, height: 10, position: "absolute", right: 4, top: 2, width: 10 },
   label: { color: "#BED0C1", fontSize: 11, fontWeight: "700" },
   activeLabel: { color: "#F0F4E5" },
 });

@@ -1,7 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
 
-from .entities import MediaPhoto, MediaVoice
+from .entities import MediaMessage, MediaPhoto, MediaVoice
 
 
 class MediaPhotoRepository(ABC):
@@ -20,4 +20,11 @@ class MediaVoiceRepository(ABC):
     @abstractmethod
     async def set_transcript(self, voice_id: uuid.UUID, transcript: str) -> MediaVoice:
         """Persist a completed transcript in voice metadata."""
+        ...
+
+
+class MediaMessageRepository(ABC):
+    @abstractmethod
+    async def create_message(self, user_id: uuid.UUID, message: MediaMessage) -> MediaMessage | None:
+        """Create a text message when its session belongs to the user."""
         ...

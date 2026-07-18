@@ -24,6 +24,7 @@ export default function App() {
   const [email, setEmail] = useState<string>();
   const [userId, setUserId] = useState<string>();
   const [onboarded, setOnboarded] = useState(false);
+  const [activeSessionId, setActiveSessionId] = useState<string>();
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
@@ -65,6 +66,7 @@ export default function App() {
     setSignedIn(false);
     setOnboarded(false);
     setUserId(undefined);
+    setActiveSessionId(undefined);
   }
 
   if (checkingSession) return null;
@@ -72,12 +74,12 @@ export default function App() {
   if (!onboarded) return <OnboardingPage onComplete={completeOnboarding} />;
   if (page === "event" && eventId) return <EventPage id={eventId} onBack={() => setPage("activity")} />;
   let content;
-  if (page === "navigate") content = <NavigatePage />;
+  if (page === "navigate") content = <NavigatePage onSessionStarted={setActiveSessionId} sessionId={activeSessionId} />;
   else if (page === "profile") content = <ProfilePage email={email} onSignOut={signOut} />;
   else content = <ActivityPage onOpen={(id) => { setEventId(id); setPage("event"); }} />;
 
   const mainPage: MainPage = page === "event" ? "activity" : page;
-  return <View style={styles.app}>{content}<MainNavigation page={mainPage} onChange={setPage} /></View>;
+  return <View style={styles.app}>{content}<MainNavigation page={mainPage} onChange={setPage} sessionActive={Boolean(activeSessionId)} /></View>;
 }
 
 const styles = StyleSheet.create({

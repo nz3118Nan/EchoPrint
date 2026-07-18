@@ -1,4 +1,11 @@
-from .entities import MediaPhoto, MediaVoice
-from .interfaces import MediaPhotoRepository, MediaVoiceRepository
+from .entities import MediaMessage, MediaPhoto, MediaVoice
+from .interfaces import MediaMessageRepository, MediaPhotoRepository, MediaVoiceRepository
 
-__all__ = ["MediaPhoto", "MediaPhotoRepository", "MediaVoice", "MediaVoiceRepository"]
+__all__ = [
+    "MediaMessage",
+    "MediaMessageRepository",
+    "MediaPhoto",
+    "MediaPhotoRepository",
+    "MediaVoice",
+    "MediaVoiceRepository",
+]
