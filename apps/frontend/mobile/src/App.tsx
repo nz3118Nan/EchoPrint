@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 
+import { signInWithEmail, signUpWithEmail } from "./auth/email";
 import { signInWithGoogle, syncUser } from "./auth/google";
 import { supabase } from "./auth/supabase";
 import { MainNavigation, type MainPage } from "./navigation/MainNavigation";
@@ -20,6 +21,7 @@ export default function App() {
   const [signedIn, setSignedIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [notice, setNotice] = useState<string>();
   const [email, setEmail] = useState<string>();
   const [userId, setUserId] = useState<string>();
   const [onboarded, setOnboarded] = useState(false);
@@ -39,6 +41,7 @@ export default function App() {
   async function login() {
     setBusy(true);
     setError(undefined);
+    setNotice(undefined);
     try {
       const session = await signInWithGoogle();
       if (!session) return;
@@ -49,6 +52,47 @@ export default function App() {
       setSignedIn(true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Google sign-in failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loginWithEmail(email: string, password: string) {
+    setBusy(true);
+    setError(undefined);
+    setNotice(undefined);
+    try {
+      const session = await signInWithEmail(email, password);
+      if (!session) throw new Error("Email sign-in did not return a session.");
+      await syncUser(session.access_token);
+      setEmail(session.user.email);
+      setUserId(session.user.id);
+      setOnboarded((await AsyncStorage.getItem(onboardingKey(session.user.id))) === "true");
+      setSignedIn(true);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Email sign-in failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createAccountWithEmail(email: string, password: string) {
+    setBusy(true);
+    setError(undefined);
+    setNotice(undefined);
+    try {
+      const session = await signUpWithEmail(email, password);
+      if (!session) {
+        setNotice("Check your email to confirm your account, then sign in here.");
+        return;
+      }
+      await syncUser(session.access_token);
+      setEmail(session.user.email);
+      setUserId(session.user.id);
+      setOnboarded(false);
+      setSignedIn(true);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not create your account.");
     } finally {
       setBusy(false);
     }
@@ -67,7 +111,7 @@ export default function App() {
   }
 
   if (checkingSession) return null;
-  if (!signedIn) return <LoginPage busy={busy} error={error} onSignIn={login} />;
+  if (!signedIn) return <LoginPage busy={busy} error={error} notice={notice} onGoogleSignIn={login} onEmailSignIn={loginWithEmail} onEmailSignUp={createAccountWithEmail} />;
   if (!onboarded) return <OnboardingPage onComplete={completeOnboarding} />;
   if (page === "event" && eventId) return <EventPage id={eventId} onBack={() => setPage("activity")} />;
   let content;

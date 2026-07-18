@@ -21,8 +21,35 @@ pyjwt = { extras = ["crypto"], version = ">=2.10,<3" }
 pyyaml = ">=6,<7"
 
 [tool.poetry.group.dev.dependencies]
+# Test runner — entrypoint for `poetry run pytest`
 pytest = ">=8,<9"
+pytest-asyncio = ">=1.0,<2"
+# ASGI transport used by fastapi.testclient for route-level tests
+httpx = ">=0.27,<1"
+
+[tool.poetry.scripts]
+test-all = "scripts.tests:test_all"
+test-unit = "scripts.tests:test_unit"
+test-integration = "scripts.tests:test_integration"
 
 [build-system]
 requires = ["poetry-core>=1.9"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = "-v --tb=short --color=yes --strict-markers"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "unit: Mark tests that are unit tests (no external services)",
+    "integration: Mark tests that require a live Postgres",
+    "smoke: Quick checks of core functionality",
+    "regression: Tests to ensure that fixed issues remain resolved",
+    "asyncio: Mark tests that use asyncio",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
