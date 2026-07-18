@@ -1,6 +1,13 @@
 import { Feather } from "@expo/vector-icons";
+import {
+  AudioModule,
+  RecordingPresets,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from "expo-audio";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   ImageBackground,
   PanResponder,
@@ -12,6 +19,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { createTraceSession, uploadVoice } from "../api/backend";
 
 type EchoMode = "idle" | "record" | "photo" | "text";
 type TimelineItem = {
@@ -29,15 +38,64 @@ const firstTimeline: TimelineItem[] = [
 
 export function NavigatePage() {
   const [started, setStarted] = useState(false);
+  const [sessionId, setSessionId] = useState<string>();
   const [timeline, setTimeline] = useState<TimelineItem[]>(firstTimeline);
   const [mode, setMode] = useState<EchoMode>("idle");
   const [duration, setDuration] = useState(0);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [draft, setDraft] = useState("");
   const pulse = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
   const modeRef = useRef<EchoMode>("idle");
   const startedAt = useRef(0);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recordingStart = useRef<Promise<boolean> | null>(null);
+
+  async function startTrace() {
+    try {
+      const session = await createTraceSession();
+      setSessionId(session.id);
+      setStarted(true);
+    } catch (error) {
+      Alert.alert("Could not start", error instanceof Error ? error.message : "Try again.");
+    }
+  }
+
+  async function beginRecording() {
+    const permission = await AudioModule.requestRecordingPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Microphone permission needed", "Enable microphone access to save voice echoes.");
+      return false;
+    }
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    await recorder.prepareToRecordAsync();
+    recorder.record();
+    return true;
+  }
+
+  async function finishRecording(action: EchoMode) {
+    try {
+      const ready = await recordingStart.current;
+      if (!ready) return;
+      await recorder.stop();
+      if (action !== "record" || !recorder.uri || !sessionId) return;
+      const durationMs = Math.max(1, Date.now() - startedAt.current);
+      setUploading(true);
+      const saved = await uploadVoice(sessionId, recorder.uri, durationMs);
+      addTimeline(
+        "voice",
+        "Voice echo",
+        saved.transcript || `${Math.ceil(durationMs / 1000)} sec recording`,
+      );
+    } catch (error) {
+      Alert.alert("Voice echo not saved", error instanceof Error ? error.message : "Try again.");
+    } finally {
+      recordingStart.current = null;
+      setUploading(false);
+      await setAudioModeAsync({ allowsRecording: false });
+    }
+  }
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -78,6 +136,7 @@ export function NavigatePage() {
           startedAt.current = Date.now();
           modeRef.current = "record";
           setMode("record");
+          recordingStart.current = beginRecording();
         },
         onPanResponderMove: (_, gesture) => {
           dragY.setValue(Math.max(-58, Math.min(58, gesture.dy)));
@@ -90,9 +149,7 @@ export function NavigatePage() {
         onPanResponderRelease: () => {
           const action = modeRef.current;
           Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
-          if (action === "record") {
-            addTimeline("voice", "Voice echo", `${Math.max(1, Math.floor((Date.now() - startedAt.current) / 1000))} sec recording`);
-          }
+          void finishRecording(action);
           if (action === "photo") addTimeline("photo", "Photo echo", "A moment saved to this trace.");
           if (action === "text") setComposerOpen(true);
           modeRef.current = "idle";
@@ -102,9 +159,10 @@ export function NavigatePage() {
           Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
           modeRef.current = "idle";
           setMode("idle");
+          void finishRecording("idle");
         },
       }),
-    [dragY],
+    [dragY, sessionId],
   );
 
   function submitNote() {
@@ -114,7 +172,7 @@ export function NavigatePage() {
     setComposerOpen(false);
   }
 
-  if (!started) return <StartTrace onStart={() => setStarted(true)} pulse={pulse} />;
+  if (!started) return <StartTrace onStart={() => void startTrace()} pulse={pulse} />;
 
   const prompt =
     mode === "record"
@@ -123,7 +181,9 @@ export function NavigatePage() {
         ? "Release to save a photo"
         : mode === "text"
           ? "Release to write a note"
-          : "Hold to record · drag up or down";
+          : uploading
+            ? "Saving and transcribing voice…"
+            : "Hold to record · drag up or down";
 
   return (
     <SafeAreaView style={styles.safeArea}>

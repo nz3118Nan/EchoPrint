@@ -13,7 +13,14 @@
       "bundleIdentifier": "com.nz3118.echoprint"
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow EchoPoint to record voice echoes.",
+          "enableBackgroundRecording": false
+        }
+      ]
     ]
   }
 }

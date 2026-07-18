@@ -46,6 +46,7 @@ def test_router_carries_echoprint_prefix():
     "path, method",
     [
         (f"{API_PREFIX}/auth/sync", "POST"),
+        (f"{API_PREFIX}/sessions", "POST"),
         (f"{API_PREFIX}/transcriptions/batch", "POST"),
     ],
 )
@@ -74,7 +75,7 @@ def test_routes_are_tagged_for_docs():
         for tag in operation.get("tags", [])
     }
     # Infrastructure is intentionally absent because /health is hidden from docs.
-    assert {"auth", "transcriptions"}.issubset(tags)
+    assert {"auth", "sessions", "transcriptions"}.issubset(tags)
 
 
 ################################################################################
