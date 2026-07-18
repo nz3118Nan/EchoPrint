@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "EchoPrint",
-    "slug": "echoprint",
+    "name": "EchoPoint",
+    "slug": "echopoint",
     "scheme": "echoprint",
     "version": "0.1.0",
     "orientation": "portrait",

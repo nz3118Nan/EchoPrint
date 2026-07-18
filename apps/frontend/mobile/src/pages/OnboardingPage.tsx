@@ -4,7 +4,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.content}>
-        <Text style={styles.eyebrow}>WELCOME TO ECHOPRINT</Text>
+        <Text style={styles.eyebrow}>WELCOME TO ECHOPOINT</Text>
         <Text style={styles.title}>Keep the moments you want to return to.</Text>
         <Text style={styles.copy}>Capture a thought, attach a place, and find it again when it matters.</Text>
         <Pressable style={styles.button} onPress={onComplete}>

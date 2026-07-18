@@ -4,6 +4,7 @@ import os
 from src.infrastructure.database.postgres.connection import AsyncSqlDatabase
 from src.infrastructure.database.redis.connection import AsyncRedisDatabase
 from src.infrastructure.database.postgres.repositories.user_repository import UserRepository
+from src.infrastructure.database.postgres.repositories import PostgresMediaPhotoRepository
 from src.infrastructure.auth.supabase import SupabaseTokenVerifier
 from src.infrastructure.transcription.openai import OpenAITranscriptionService
 from src.shared import config
@@ -15,6 +16,7 @@ class Container(containers.DeclarativeContainer):
     database = providers.Singleton(AsyncSqlDatabase, config.system_config_setting.database.sql.connection.url)
     redis = providers.Singleton(AsyncRedisDatabase, config.system_config_setting.database.redis.url)
     user_repository = providers.Factory(UserRepository, database=database)
+    media_photo_repository = providers.Factory(PostgresMediaPhotoRepository, database=database)
     supabase_token_verifier = providers.Singleton(
         SupabaseTokenVerifier,
         config.system_config_setting.auth.supabase.url,

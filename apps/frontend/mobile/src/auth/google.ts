@@ -16,8 +16,16 @@ export async function signInWithGoogle() {
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
   if (result.type !== "success") return null;
 
-  const { data: sessionData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(result.url);
-  if (exchangeError) throw exchangeError;
+  const tokens = new URLSearchParams(result.url.split("#")[1] ?? "");
+  const accessToken = tokens.get("access_token");
+  const refreshToken = tokens.get("refresh_token");
+  if (!accessToken || !refreshToken) throw new Error("Google did not return a session.");
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  if (sessionError) throw sessionError;
   return sessionData.session;
 }
 

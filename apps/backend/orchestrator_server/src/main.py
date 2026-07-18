@@ -5,7 +5,7 @@ from src.api import api_router
 from src.bootstrap import create_lifespan
 from src.container import container
 
-container.wire(modules=["src.api.auth", "src.api.transcriptions"])
+container.wire(modules=["src.api.auth", "src.api.transcriptions", "src.api.photos"])
 app = FastAPI(
     title="EchoPrint Backend",
     version="0.1.0",

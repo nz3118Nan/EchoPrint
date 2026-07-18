@@ -1,23 +1,11 @@
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
-import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 
-type Method = "google" | "email";
-
-export function LoginPage({ busy, error, notice, onGoogleSignIn, onEmailSignIn, onEmailSignUp }: {
+export function LoginPage({ busy, error, onGoogleSignIn }: {
   busy: boolean;
   error?: string;
-  notice?: string;
   onGoogleSignIn: () => void;
-  onEmailSignIn: (email: string, password: string) => void;
-  onEmailSignUp: (email: string, password: string) => void;
 }) {
-  const [method, setMethod] = useState<Method>("google");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [newAccount, setNewAccount] = useState(false);
-  const canSubmitEmail = email.trim().length > 0 && password.length >= 6;
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
@@ -26,7 +14,7 @@ export function LoginPage({ busy, error, notice, onGoogleSignIn, onEmailSignIn, 
       <View style={styles.content}>
         <View style={styles.brandRow}>
           <View style={styles.brandMark}><View style={styles.brandMarkInner} /></View>
-          <Text style={styles.brand}>ECHOPRINT</Text>
+          <Text style={styles.brand}>ECHOPOINT</Text>
         </View>
 
         <View style={styles.hero}>
@@ -47,27 +35,11 @@ export function LoginPage({ busy, error, notice, onGoogleSignIn, onEmailSignIn, 
         </View>
 
         <View style={styles.signInArea}>
-          <View style={styles.tabs}>
-            <Pressable accessibilityRole="tab" style={[styles.tab, method === "google" && styles.tabSelected]} onPress={() => setMethod("google")}><Text style={[styles.tabText, method === "google" && styles.tabTextSelected]}>Google</Text></Pressable>
-            <Pressable accessibilityRole="tab" style={[styles.tab, method === "email" && styles.tabSelected]} onPress={() => setMethod("email")}><Text style={[styles.tabText, method === "email" && styles.tabTextSelected]}>Email</Text></Pressable>
-          </View>
-          {method === "google" ? (
-            <Pressable accessibilityRole="button" disabled={busy} style={[styles.button, busy && styles.disabled]} onPress={onGoogleSignIn}>
-              <View style={styles.googleMark}><Text style={styles.googleMarkText}>G</Text></View>
-              <Text style={styles.buttonText}>{busy ? "Connecting to Google…" : "Continue with Google"}</Text>
-            </Pressable>
-          ) : (
-            <View style={styles.emailForm}>
-              <TextInput autoCapitalize="none" autoComplete="email" keyboardType="email-address" onChangeText={setEmail} placeholder="Email address" placeholderTextColor="#799384" style={styles.input} value={email} />
-              <TextInput autoComplete="password" onChangeText={setPassword} placeholder="Password (6+ characters)" placeholderTextColor="#799384" secureTextEntry style={styles.input} value={password} />
-              <Pressable accessibilityRole="button" disabled={busy || !canSubmitEmail} style={[styles.button, (!canSubmitEmail || busy) && styles.disabled]} onPress={() => newAccount ? onEmailSignUp(email.trim(), password) : onEmailSignIn(email.trim(), password)}>
-                <Text style={styles.buttonText}>{busy ? "Please wait…" : newAccount ? "Create account" : "Sign in with email"}</Text>
-              </Pressable>
-              <Pressable disabled={busy} onPress={() => setNewAccount(!newAccount)}><Text style={styles.switchText}>{newAccount ? "Already have an account? Sign in" : "New here? Create an account"}</Text></Pressable>
-            </View>
-          )}
+          <Pressable accessibilityRole="button" disabled={busy} style={[styles.button, busy && styles.disabled]} onPress={onGoogleSignIn}>
+            <View style={styles.googleMark}><Text style={styles.googleMarkText}>G</Text></View>
+            <Text style={styles.buttonText}>{busy ? "Connecting to Google…" : "Continue with Google"}</Text>
+          </Pressable>
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          {notice ? <Text style={styles.notice}>{notice}</Text> : null}
           <Text style={styles.terms}>By continuing, you agree to create a private trail of your moments.</Text>
         </View>
       </View>
@@ -96,20 +68,11 @@ const styles = StyleSheet.create({
   route: { position: "absolute", right: 88, bottom: 38, width: 2, height: 90, backgroundColor: "#B8D49D", opacity: 0.9, transform: [{ rotate: "-26deg" }] },
   routeDot: { position: "absolute", top: -3, left: -5, width: 12, height: 12, backgroundColor: "#E4F2BB", borderColor: "#12382D", borderRadius: 6, borderWidth: 2 },
   signInArea: { gap: 14 },
-  tabs: { alignSelf: "center", backgroundColor: "#0E3026", borderRadius: 12, flexDirection: "row", padding: 3 },
-  tab: { borderRadius: 9, minWidth: 98, paddingHorizontal: 14, paddingVertical: 8 },
-  tabSelected: { backgroundColor: "#315C4A" },
-  tabText: { color: "#9DB6A3", fontSize: 13, fontWeight: "700", textAlign: "center" },
-  tabTextSelected: { color: "#F4F0E6" },
-  emailForm: { gap: 10 },
-  input: { backgroundColor: "#F6F4ED", borderRadius: 13, color: "#173A2F", fontSize: 16, minHeight: 52, paddingHorizontal: 16 },
   button: { alignItems: "center", backgroundColor: "#F6F4ED", borderRadius: 16, flexDirection: "row", justifyContent: "center", minHeight: 58, paddingHorizontal: 18 },
   disabled: { opacity: 0.6 },
   googleMark: { alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 14, height: 28, justifyContent: "center", marginRight: 11, width: 28 },
   googleMarkText: { color: "#4285F4", fontSize: 16, fontWeight: "800" },
   buttonText: { color: "#173A2F", fontSize: 16, fontWeight: "700" },
   error: { color: "#FFD2C8", fontSize: 13, lineHeight: 18, textAlign: "center" },
-  notice: { color: "#D9EDB8", fontSize: 13, lineHeight: 18, textAlign: "center" },
-  switchText: { color: "#D9EDB8", fontSize: 13, fontWeight: "700", textAlign: "center" },
   terms: { color: "#AFC4B1", fontSize: 11, lineHeight: 16, paddingHorizontal: 20, textAlign: "center" },
 });

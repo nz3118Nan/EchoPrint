@@ -28,6 +28,8 @@ PODS:
     - Yoga
   - ExpoAsset (55.0.18):
     - ExpoModulesCore
+  - ExpoBlur (55.0.16):
+    - ExpoModulesCore
   - ExpoDomWebView (55.0.6):
     - ExpoModulesCore
   - ExpoFileSystem (55.0.24):
@@ -1996,6 +1998,7 @@ DEPENDENCIES:
   - "EXConstants (from `../../../../node_modules/.pnpm/expo-constants@55.0.17_expo@55.0.28_react-native@0.83.2_@babel+core@7.29.7_@types+react@19.2.17_react@19.2.0_/node_modules/expo-constants/ios`)"
   - "Expo (from `../../../../node_modules/.pnpm/expo@55.0.28_@babel+core@7.29.7_@expo+dom-webview@55.0.6_@expo+metro-runtime@55.0.12_ex_d8e75af6f28d45166b51de10aa72b5b8/node_modules/expo`)"
   - "ExpoAsset (from `../../../../node_modules/.pnpm/expo-asset@55.0.18_expo@55.0.28_react-native@0.83.2_@babel+core@7.29.7_@types+react@19._47ee30a74d94b34953cca09d68a6ed8c/node_modules/expo-asset/ios`)"
+  - "ExpoBlur (from `../../../../node_modules/.pnpm/expo-blur@55.0.16_expo@55.0.28_react-native@0.83.2_@babel+core@7.29.7_@types+react@19.2.17_react@19.2.0__react@19.2.0/node_modules/expo-blur/ios`)"
   - "ExpoDomWebView (from `../../../../node_modules/.pnpm/@expo+dom-webview@55.0.6_expo@55.0.28_react-native@0.83.2_@babel+core@7.29.7_@types+rea_403c14b50c0a0787be18c7f895850e21/node_modules/@expo/dom-webview/ios`)"
   - "ExpoFileSystem (from `../../../../node_modules/.pnpm/expo-file-system@55.0.24_expo@55.0.28_react-native@0.83.2_@babel+core@7.29.7_@types+react@19.2.17_react@19.2.0_/node_modules/expo-file-system/ios`)"
   - "ExpoFont (from `../../../../node_modules/.pnpm/expo-font@55.0.8_expo@55.0.28_react-native@0.83.2_@babel+core@7.29.7_@types+react@19.2.17_react@19.2.0__react@19.2.0/node_modules/expo-font/ios`)"
@@ -2090,6 +2093,8 @@ EXTERNAL SOURCES:
     :path: "../../../../node_modules/.pnpm/expo@55.0.28_@babel+core@7.29.7_@expo+dom-webview@55.0.6_@expo+metro-runtime@55.0.12_ex_d8e75af6f28d45166b51de10aa72b5b8/node_modules/expo"
   ExpoAsset:
     :path: "../../../../node_modules/.pnpm/expo-asset@55.0.18_expo@55.0.28_react-native@0.83.2_@babel+core@7.29.7_@types+react@19._47ee30a74d94b34953cca09d68a6ed8c/node_modules/expo-asset/ios"
+  ExpoBlur:
+    :path: "../../../../node_modules/.pnpm/expo-blur@55.0.16_expo@55.0.28_react-native@0.83.2_@babel+core@7.29.7_@types+react@19.2.17_react@19.2.0__react@19.2.0/node_modules/expo-blur/ios"
   ExpoDomWebView:
     :path: "../../../../node_modules/.pnpm/@expo+dom-webview@55.0.6_expo@55.0.28_react-native@0.83.2_@babel+core@7.29.7_@types+rea_403c14b50c0a0787be18c7f895850e21/node_modules/@expo/dom-webview/ios"
   ExpoFileSystem:
@@ -2266,6 +2271,7 @@ SPEC CHECKSUMS:
   EXConstants: 49a092f564eb895b79ab416f53ba54f7e6935197
   Expo: d46141026ac8a783abeb4339ab16a713fb9c4c65
   ExpoAsset: 42278ae3d585ab9bf5a223e7979d5365c348cffc
+  ExpoBlur: 13b782cf5f1475ef9e36ef81829afe108aeaca40
   ExpoDomWebView: b2e9d601f9cb77d3c97da73234e175b64be91928
   ExpoFileSystem: b16ad358dff1dd561f561d8ca0bf22cf00ddad40
   ExpoFont: a7e34a75bdfb703fa07a0e87807f836236608c76
