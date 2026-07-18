@@ -1,0 +1,15 @@
+system_config_setting:
+  database:
+    sql:
+      connection:
+        url: ${DATABASE_URL}
+      db_schema:
+        echoprint_service:
+          table_name:
+            User: "user"
+    redis:
+      url: ${REDIS_URL}
+  auth:
+    supabase:
+      url: ${SUPABASE_URL}
+      jwks_url: ${SUPABASE_JWKS_URL}

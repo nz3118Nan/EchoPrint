@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "EchoPrint",
+    "slug": "echoprint",
+    "scheme": "echoprint",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "web": {
+      "bundler": "metro"
+    },
+    "ios": {
+      "bundleIdentifier": "com.nz3118.echoprint"
+    },
+    "plugins": [
+      "expo-web-browser"
+    ]
+  }
+}
