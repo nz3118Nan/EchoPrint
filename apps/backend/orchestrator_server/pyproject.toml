@@ -19,6 +19,9 @@ alembic = ">=1.15,<2"
 redis = ">=5.2,<6"
 pyjwt = { extras = ["crypto"], version = ">=2.10,<3" }
 pyyaml = ">=6,<7"
+openai = ">=1.54,<3"
+python-multipart = ">=0.0.12,<1"
+websockets = ">=14,<16"
 
 [tool.poetry.group.dev.dependencies]
 # Test runner — entrypoint for `poetry run pytest`

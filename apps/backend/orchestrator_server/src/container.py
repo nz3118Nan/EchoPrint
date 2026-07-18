@@ -1,9 +1,11 @@
 from dependency_injector import containers, providers
+import os
 
 from src.infrastructure.database.postgres.connection import AsyncSqlDatabase
 from src.infrastructure.database.redis.connection import AsyncRedisDatabase
 from src.infrastructure.database.postgres.repositories.user_repository import UserRepository
 from src.infrastructure.auth.supabase import SupabaseTokenVerifier
+from src.infrastructure.transcription.openai import OpenAITranscriptionService
 from src.shared import config
 
 
@@ -17,6 +19,14 @@ class Container(containers.DeclarativeContainer):
         SupabaseTokenVerifier,
         config.system_config_setting.auth.supabase.url,
         config.system_config_setting.auth.supabase.jwks_url,
+    )
+    transcription_service = providers.Singleton(
+        OpenAITranscriptionService,
+        api_key=os.getenv("OPENAI_API_KEY", ""),
+        batch_model=os.getenv("OPENAI_TRANSCRIPTION_MODEL", "gpt-4o-transcribe"),
+        realtime_model=os.getenv(
+            "OPENAI_REALTIME_TRANSCRIPTION_MODEL", "gpt-4o-transcribe"
+        ),
     )
 
 

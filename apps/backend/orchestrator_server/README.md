@@ -3,6 +3,21 @@
 FastAPI backend with the Blueprint AI Agent lifecycle pattern:
 `main -> lifespan -> container -> migrations -> API routers`.
 
+## Voice transcription API
+
+Set `OPENAI_API_KEY` on the backend, then choose one of two modes:
+
+| Mode | Endpoint | Input | Output |
+| --- | --- | --- | --- |
+| Batch | `POST /echoprint/api/transcriptions/batch` | Multipart field `audio` | `{ "mode": "batch", "transcript": "..." }` |
+| Realtime | `WS /echoprint/api/transcriptions/realtime` | JSON events containing base64 24 kHz mono PCM16 | Transcript delta/completed events |
+
+Realtime clients send audio as
+`{"type":"audio_chunk","audio":"<base64>"}` and finish with
+`{"type":"stop"}`. The backend responds with `transcript_delta` events while
+speech is being processed and `transcript_done` for each completed speech turn.
+The OpenAI API key stays in the backend and is never sent to the client.
+
 ## Tests
 
 The suite mirrors the Blueprint AI Agent Service layout (`tests/unit`,
